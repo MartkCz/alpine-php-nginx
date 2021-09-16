@@ -1,0 +1,5 @@
+xdebug.mode=profile
+xdebug.output_dir=${output_dir}
+xdebug.start_with_request=trigger
+debug.profiler_append=0
+xdebug.profiler_output_name=cachegrind.out

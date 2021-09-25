@@ -2,8 +2,8 @@ max_execution_time = ${max_execution_time}
 realpath_cache_ttl = 600
 max_input_time = ${max_input_time}
 memory_limit = ${memory_limit}
-post_max_size = 32M
-upload_max_filesize = 32M
+post_max_size = ${post_max_size}
+upload_max_filesize = ${upload_max_filesize}
 
 ; Short tags
 asp_tags = Off
@@ -21,14 +21,14 @@ track_errors = Off
 error_log = /dev/stderr
 
 ; Opcache
-opcache.enable=1
+opcache.enable=${opcache.enable}
 opcache.enable_cli=${opcache.enable_cli}
 opcache.memory_consumption=${opcache.memory_consumption}
 opcache.interned_strings_buffer=64
 opcache.max_accelerated_files=32531
-opcache.validate_timestamps=${validate_timestamps}
+opcache.validate_timestamps=${opcache.validate_timestamps}
 opcache.save_comments=1
 opcache.fast_shutdown=0
-opcache.file_cache=/var/opcache
+opcache.revalidate_freq=${opcache.revalidate_freq}
 
 ${section:append}

@@ -12,12 +12,13 @@ chdir = /app
 
 access.log = /proc/self/fd/1
 
-pm = ${pm}
-pm.max_children = ${max_children}
-pm.start_servers = 60
-pm.min_spare_servers = 25
-pm.max_spare_servers = 100
-pm.max_requests = 1000
+pm = ${fpm.pm}
+pm.max_children = ${fpm.max_children}
+pm.start_servers = ${fpm.start_servers}
+pm.min_spare_servers = ${fpm.min_spare_servers}
+pm.max_spare_servers = ${fpm.max_spare_servers}
+pm.process_idle_timeout = ${fpm.process_idle_timeout}
+pm.max_requests = ${fpm.max_requests}
 
 listen.backlog = -1
 rlimit_files = 65536

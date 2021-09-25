@@ -16,7 +16,7 @@ http {
     include /etc/nginx/includes/nginx-http.conf;
     ${section:http}
 
-    client_max_body_size 32m;
+    client_max_body_size ${client_max_body_size};
 
     access_log /dev/stdout;
 

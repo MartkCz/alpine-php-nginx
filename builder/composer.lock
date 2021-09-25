@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "b5fd28edeb17addfe0bef2086a0a2609",
+    "content-hash": "6b0993b1d2017697e01dc4d2b2223a16",
     "packages": [
         {
             "name": "nette/schema",
@@ -70,20 +70,20 @@
         },
         {
             "name": "nette/utils",
-            "version": "v3.2.2",
+            "version": "v3.2.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nette/utils.git",
-                "reference": "967cfc4f9a1acd5f1058d76715a424c53343c20c"
+                "reference": "9cd80396ca58d7969ab44fc7afcf03624dfa526e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nette/utils/zipball/967cfc4f9a1acd5f1058d76715a424c53343c20c",
-                "reference": "967cfc4f9a1acd5f1058d76715a424c53343c20c",
+                "url": "https://api.github.com/repos/nette/utils/zipball/9cd80396ca58d7969ab44fc7afcf03624dfa526e",
+                "reference": "9cd80396ca58d7969ab44fc7afcf03624dfa526e",
                 "shasum": ""
             },
             "require": {
-                "php": ">=7.2 <8.1"
+                "php": ">=7.2 <8.2"
             },
             "conflict": {
                 "nette/di": "<3.0.6"
@@ -149,9 +149,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nette/utils/issues",
-                "source": "https://github.com/nette/utils/tree/v3.2.2"
+                "source": "https://github.com/nette/utils/tree/v3.2.5"
             },
-            "time": "2021-03-03T22:53:25+00:00"
+            "time": "2021-09-20T10:50:11+00:00"
         },
         {
             "name": "psr/container",
@@ -1014,6 +1014,36 @@
                 }
             ],
             "time": "2021-08-26T08:00:08+00:00"
+        },
+        {
+            "name": "webchemistry/console-arguments",
+            "version": "v1.1.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/WebChemistry/console-arguments.git",
+                "reference": "f8367f6687a248738c795aec0225abafb3a75cce"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/WebChemistry/console-arguments/zipball/f8367f6687a248738c795aec0225abafb3a75cce",
+                "reference": "f8367f6687a248738c795aec0225abafb3a75cce",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "WebChemistry\\ConsoleArguments\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "support": {
+                "issues": "https://github.com/WebChemistry/console-arguments/issues",
+                "source": "https://github.com/WebChemistry/console-arguments/tree/v1.1.2"
+            },
+            "time": "2021-09-21T09:21:39+00:00"
         }
     ],
     "packages-dev": [],

@@ -2,15 +2,11 @@
 
 namespace App;
 
-use Nette\Schema\Expect;
-use Nette\Schema\Processor;
+use Exception;
+use WebChemistry\ConsoleArguments\BaseCommand;
 use Nette\Utils\FileSystem;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Output\OutputInterface;
 
-final class BuilderCommand extends Command
+final class BuilderCommand extends BaseCommand
 {
 
 	private const NGINX_FILE = '/etc/nginx/nginx.conf';
@@ -23,160 +19,172 @@ final class BuilderCommand extends Command
 	private const PHP_TEMPLATE = __DIR__ . '/../assets/php/99_settings.ini.template';
 	private const FASTCGI_PARAMS_TEMPLATE = __DIR__ . '/../assets/nginx/fastcgi_params.conf.template';
 
+	private const PHP_CONF = [
+		'memcached' => '/etc/php8/conf.d/20_memcached.ini',
+		'redis' => '/etc/php8/conf.d/20_redis.ini',
+		'swoole' => '/etc/php8/conf.d/00_swoole.ini',
+		'imagick' => '/etc/php8/conf.d/00_imagick.ini',
+	];
+
 	protected static string $defaultName = 'builder';
 
-	private static OutputInterface $output;
+	protected BuilderArguments $arguments;
 
-	protected function configure(): void
+	protected function exec(): void
 	{
-		$this->setDescription('Build application')
-			->addOption('non-www', null, InputOption::VALUE_NONE, 'Redirects www => non-www.')
-			->addOption('port', null, InputOption::VALUE_REQUIRED, 'Sets port.', 8080)
-			->addOption('https', null, InputOption::VALUE_NONE, 'Redirects http => https.')
-			->addOption('cache-css-js', null, InputOption::VALUE_NONE, 'Cache css and js for long time.')
-			->addOption('cache-media', null, InputOption::VALUE_NONE, 'Cache images, icons, video audio, HTC for long time.')
-			->addOption('xdebug', null, InputOption::VALUE_NONE, 'Enables xdebug.')
-			->addOption('xdebug-profiler', null, InputOption::VALUE_REQUIRED, 'Enables xdebug profiler.', '/dev/null')
-			->addOption('memory-limit', null, InputOption::VALUE_REQUIRED, 'Sets php memory limit.', '64M')
-			->addOption('max-execution-time', null, InputOption::VALUE_REQUIRED, 'Sets php max execution time.', 30)
-			->addOption('max-input-time', null, InputOption::VALUE_REQUIRED, 'Sets php max input time.', 30)
-			->addOption('disable-nginx', null, InputOption::VALUE_NONE, 'Disables nginx.')
-			->addOption('gcloud-run', null, InputOption::VALUE_NONE, 'Enables gcloud run optimization.')
-			->addOption('mkdir', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Makes directory.')
-			->addOption('dev', null, InputOption::VALUE_NONE, 'Enables dev mode.')
-			->addOption('preload', null, InputOption::VALUE_REQUIRED, 'Enables opcache preloading.', '/dev/null')
-			->addOption('preload-user', null, InputOption::VALUE_REQUIRED, 'Sets preload user')
-		;
-	}
-
-	protected function execute(InputInterface $input, OutputInterface $output): int
-	{
-		$arguments = $this->getArguments($input);
-
-		self::$output = $output;
-
 		$phpTemplate = new FileTemplate(self::PHP_TEMPLATE);
 		$phpFpmTemplate = new FileTemplate(self::PHP_FPM_TEMPLATE);
 		$nginxTemplate = new FileTemplate(__DIR__ . '/../assets/nginx/nginx.conf.template');
 		$supervisordTemplate = new FileTemplate(__DIR__ . '/../assets/supervisord/supervisord.conf.template');
 		$fastCgiParamsTemplate = new FileTemplate(self::FASTCGI_PARAMS_TEMPLATE);
 
-		if ($arguments->dev) {
+		if ($this->arguments->dev) {
 			$this->log('Enabling dev mode.');
 		}
 
-		$this->preparePhp($arguments, $phpTemplate);
-		$this->prepareNginx($arguments, $nginxTemplate);
-		$this->prepareSupervisord($arguments, $supervisordTemplate);
-		$this->preparePhpFpm($arguments, $phpFpmTemplate);
+		$this->preparePhp($phpTemplate);
+		$this->prepareNginx($nginxTemplate);
+		$this->prepareSupervisord($supervisordTemplate);
+		$this->preparePhpFpm($phpFpmTemplate);
 		$this->prepareFastCgi($fastCgiParamsTemplate);
 
 		// Gcloud run
-		if ($arguments->gcloudRun) {
+		if ($this->arguments->gcloudRun) {
 			$this->prepareGcloudRun($phpFpmTemplate, $phpTemplate, $fastCgiParamsTemplate);
 		}
 
 		// mkdir
-		foreach ($arguments->mkdir as $path) {
+		foreach ($this->arguments->mkdir as $path) {
 			$this->log(sprintf('Creating directory with path %s.', $path));
 
 			FileSystem::createDir($path);
 		}
 
-		$output->writeln('<info>Writing config files.</info>');
+		$this->output->writeln('<info>Writing config files.</info>');
 
 		$phpTemplate->renderToFile(self::PHP_FILE);
 		$nginxTemplate->renderToFile(self::NGINX_FILE);
 		$supervisordTemplate->renderToFile(self::SUPERVISORD_FILE);
 		$phpFpmTemplate->renderToFile(self::PHP_FPM_FILE);
 		$fastCgiParamsTemplate->renderToFile(self::FASTCGI_PARAMS_FILE);
-
-		return self::SUCCESS;
 	}
 
-	private function prepareNginx(BuilderArguments $arguments, FileTemplate $nginxTemplate): void
+	private function prepareNginx(FileTemplate $nginxTemplate): void
 	{
-		if ($arguments->https) {
+		if ($this->arguments->https) {
 			$this->log('Enabling http => https redirection.');
 
 			$nginxTemplate->addSectionFromFile('server', __DIR__ . '/../assets/nginx-https.conf');
 		}
 
-		if ($arguments->nonWww) {
+		if ($this->arguments->nonWww) {
 			$this->log('Enabling www => non-www redirection.');
 
 			$nginxTemplate->addSectionFromFile('server', __DIR__ . '/../assets/nginx-non-www.conf');
 		}
 
-		if ($arguments->cacheCssJs) {
+		if ($this->arguments->cacheCssJs) {
 			$this->log('Enabling cache css and js.');
 
 			$nginxTemplate->addSectionFromFile('server', __DIR__ . '/../assets/nginx/nginx-cache-css-js-long.conf');
 		}
 
-		if ($arguments->cacheMedia) {
+		if ($this->arguments->cacheMedia) {
 			$this->log('Enabling cache media.');
 
 			$nginxTemplate->addSectionFromFile('server', __DIR__ . '/../assets/nginx/nginx-cache-media-long.conf');
 		}
+
+		$nginxTemplate->addVariable('client_max_body_size', $this->arguments->httpMaxSize);
 	}
 
-	private function preparePhp(BuilderArguments $arguments, FileTemplate $phpTemplate): void
+	private function preparePhp(FileTemplate $phpTemplate): void
 	{
-		if ($arguments->port !== 8080) {
-			$this->log(sprintf('Setting port to %s.', $arguments->port));
+		if ($this->arguments->port !== 8080) {
+			$this->log(sprintf('Setting port to %s.', $this->arguments->port));
 
-			FileTemplate::replace(self::NGINX_FILE, 'listen 8080;', sprintf('listen %s;', $arguments->port));
+			FileTemplate::replace(self::NGINX_FILE, 'listen 8080;', sprintf('listen %s;', $this->arguments->port));
 		}
 
-		if ($arguments->xdebug) {
+		if ($this->arguments->xdebug) {
 			$this->log('Enabling xdebug.');
 
 			$phpTemplate->addSection('append', 'zend_extension=xdebug.so');
 		}
 
-		if ($arguments->xdebugProfiler !== '/dev/null') {
+		if ($this->arguments->xdebugProfiler !== '/dev/null') {
 			$this->log('Enabling xdebug profiler.');
 
 			$phpTemplate->addSection(
 				'append',
 				FileTemplate::renderStatic(__DIR__ . '/../assets/php/xdebug.profiler.ini.template', [
-					'output_dir' => $arguments->xdebugProfiler,
+					'output_dir' => $this->arguments->xdebugProfiler,
 				])
 			);
 		}
 
-		$phpTemplate->addVariable('validate_timestamps', $arguments->dev ? 1 : 0);
+		$phpTemplate->addVariable('max_execution_time', $this->arguments->maxExecutionTime);
+		$phpTemplate->addVariable('max_input_time', $this->arguments->maxInputTime);
+		$phpTemplate->addVariable('memory_limit', $this->arguments->memoryLimit);
+		$phpTemplate->addVariable('upload_max_filesize', $this->arguments->httpMaxSize);
+		$phpTemplate->addVariable('post_max_size', $this->arguments->httpMaxSize);
 
-		$phpTemplate->addVariable('max_execution_time', $arguments->maxExecutionTime);
-		$phpTemplate->addVariable('max_input_time', $arguments->maxInputTime);
-		$phpTemplate->addVariable('memory_limit', $arguments->memoryLimit);
-
-		$phpTemplate->addVariable('opcache.memory_consumption', 128);
+		$phpTemplate->addVariable('opcache.validate_timestamps', $this->arguments->_validateTimestamps);
+		$phpTemplate->addVariable('opcache.enable', $this->arguments->opcacheDisable ? 0 : 1);
 		$phpTemplate->addVariable('opcache.enable_cli', 0);
+		$phpTemplate->addVariable('opcache.memory_consumption', 128);
+		$phpTemplate->addVariable('opcache.revalidate_freq', $this->arguments->_revalidateFreq); // 2 => default
 
-		if ($arguments->preload !== '/dev/null') {
+		if ($this->arguments->preload !== '/dev/null') {
 			$this->log('Enables preload.');
 
-			$phpTemplate->addSection('append', 'opcache.preload=' . $arguments->preload);
+			$phpTemplate->addSection('append', 'opcache.preload=' . $this->arguments->preload);
 
-			if ($arguments->preloadUser) {
-				$phpTemplate->addSection('append', 'opcache.preload_user=' . $arguments->preloadUser);
+			if ($this->arguments->preloadUser) {
+				$phpTemplate->addSection('append', 'opcache.preload_user=' . $this->arguments->preloadUser);
 			}
 		}
+
+		$extensions = [
+			'memcached' => $this->arguments->extMemcached,
+			'swoole' => $this->arguments->extSwoole,
+			'redis' => $this->arguments->extRedis,
+			'imagick' => $this->arguments->extImagick,
+		];
+
+		foreach ($extensions as $extension => $enabled) {
+			if (!$enabled) {
+				$filePath = self::PHP_CONF[$extension];
+				if (is_file($filePath)) {
+					FileSystem::delete($filePath);
+				} else {
+					throw new Exception('Cannot delete file ' . $filePath);
+				}
+			}
+		}
+
 	}
 
-	private function preparePhpFpm(BuilderArguments $arguments, FileTemplate $phpFpmTemplate): void
+	private function preparePhpFpm(FileTemplate $phpFpmTemplate): void
 	{
-		$phpFpmTemplate->addVariable('pm', 'dynamic');
-		$phpFpmTemplate->addVariable('max_children', 500);
+		$cores = max($this->arguments->cpuCores, 1);
+		$startServers = $cores * 4;
+		$maxChildren = max($this->arguments->maxChildren ?: $startServers * 2, $startServers);
+
+		$phpFpmTemplate->addVariable('fpm.pm', 'dynamic');
+		$phpFpmTemplate->addVariable('fpm.max_children', $maxChildren);
+		$phpFpmTemplate->addVariable('fpm.start_servers', $startServers);
+		$phpFpmTemplate->addVariable('fpm.min_spare_servers', $cores * 2);
+		$phpFpmTemplate->addVariable('fpm.max_spare_servers', $startServers);
+		$phpFpmTemplate->addVariable('fpm.process_idle_timeout', $this->arguments->processIdleTimeout);
+		$phpFpmTemplate->addVariable('fpm.max_requests', $this->arguments->maxRequests);
 	}
 
-	private function prepareSupervisord(BuilderArguments $arguments, FileTemplate $supervisordTemplate): void
+	private function prepareSupervisord(FileTemplate $supervisordTemplate): void
 	{
 		$supervisordTemplate->addSectionFromFile('append', __DIR__ . '/../assets/supervisord/php.conf');
 
-		if (!$arguments->disableNginx) {
+		if (!$this->arguments->disableNginx) {
 			$supervisordTemplate->addSectionFromFile('append', __DIR__ . '/../assets/supervisord/nginx.conf');
 		} else {
 			$this->log('Disabling nginx.');
@@ -199,22 +207,9 @@ final class BuilderCommand extends Command
 		$fastCgiParamsTemplate->addVariable('server_port', '$server_port');
 	}
 
-	private function getArguments(InputInterface $input): BuilderArguments
-	{
-		$arguments = new BuilderArguments();
-		/** @var BuilderArguments $arguments */
-		$arguments = (new Processor())->process(
-			Expect::from($arguments, $arguments->getSchema()),
-			$arguments->getSchemaMapping(fn (string $name) => $input->getOption($name)),
-		);
-		$arguments->validate();
-
-		return $arguments;
-	}
-
 	private function log(string $message)
 	{
-		self::$output->writeln(sprintf('<comment>%s</comment>', $message));
+		$this->output->writeln(sprintf('<comment>%s</comment>', $message));
 	}
 
 }
